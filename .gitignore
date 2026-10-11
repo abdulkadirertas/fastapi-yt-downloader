@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# PyCharm / IDE configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Downloaded media & temporary processing files
+downloads/
+*.mp3
+*.mp4
+*.m4a
+*.webm
+*.part
+*.ytdl
+
+# Environment variables & secrets
+.env
+
+# OS generated files
+.DS_Store
+Thumbs.db

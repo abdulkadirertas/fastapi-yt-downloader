@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Local Video Converter</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #050816;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Star background layer */
+        #stars {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Small twinkling stars */
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) ease-in-out infinite;
+        }
+
+        /* Star twinkle animation */
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0.2;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+        }
+
+        /* Shooting star */
+        .shooting-star {
+            position: absolute;
+            width: 80px;
+            height: 2px;
+            background: linear-gradient(
+                to bottom,
+                transparent,
+                white
+            );
+            border-radius: 50%;
+            transform: rotate(45deg);
+            animation: shooting 1s linear forwards;
+        }
+
+        /* Shooting star movement */
+        @keyframes shooting {
+            0% {
+                transform: translate(0, 0) rotate(45deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(400px, 400px) rotate(45deg);
+                opacity: 0;
+            }
+        }
+
+        .box {
+            background: rgba(92, 0, 60, 0.60);
+            padding: 25px;
+            border-radius: 10px;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.60), 0 0 0 5px rgba(92, 0, 60, 0.60);
+            
+            
+        }
+
+        input {
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 12px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 5px;
+            border: none;
+            background: rgba(255, 221, 0, 0.60);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #ffb700;
+        }
+
+        #preview {
+            margin-top: 20px;
+            display: none;
+        }
+
+        #thumb {
+            width: 100%;
+            border-radius: 6px;
+        }
+
+        .dl-btn {
+            background: rgba(40, 167, 69, 0.60);
+            margin-top: 10px;
+        }
+
+        .dl-btn:hover {
+            background: #1e7e34;
+        }
+
+        /* Cancel button style */
+        .cancel-btn {
+            background: rgba(239, 68, 68, 0.60);
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        .cancel-btn:hover {
+            background: #dc2626;
+        }
+
+        #loadingBox {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .spinner {
+            margin: 10px auto;
+            width: 35px;
+            height: 35px;
+            border: 4px solid #334155;
+            border-top: 4px solid #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-text {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- Star background -->
+<div id="stars"></div>
+
+<div class="box">
+    <h3>YouTube Video Converter</h3>
+    <input type="text" id="urlInput" placeholder="Paste the Youtube Link...">
+    <br>
+    <button id="infoBtn" onclick="fetchVideo()">Get Video Info</button>
+
+    <div id="preview">
+        <img id="thumb" src="">
+        <p id="title" style="font-size: 14px;"></p>
+        <p id="duration" style="font-size: 14px;"></p>
+
+        <form>
+            <label>Choose a format:</label>
+            <select id="formatSelect">
+                <option value="mp3">MP3</option>
+                <option value="mp4">MP4</option>
+            </select>
+        </form>
+
+        <button id="dlBtn" class="dl-btn" onclick="startDownload()">Download</button>
+
+        <div id="loadingBox">
+            <div class="spinner"></div>
+            <p id="statusMsg" class="status-text">
+                Files is being ready. Please wait...
+            </p>
+            <button class="cancel-btn" onclick="cancelDownload(false)">
+                Cancel process
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let activeUrl = "";
+    let downloadController = null; // Cancel signal controller
+    let timeoutTimer = null;       // Timeout counter
+    let infoController = null;
+    let videoDuration =0;
+
+    // Create background stars
+    const starsContainer = document.getElementById("stars");
+    const starCount = 150;
+
+    for (let i = 0; i < starCount; i++) {
+        const star = document.createElement("div");
+
+        star.classList.add("star");
+
+        // Set random position
+        star.style.left = Math.random() * 100 + "%";
+        star.style.top = Math.random() * 100 + "%";
+
+        // Set random size
+        const size = Math.random() * 2 + 1;
+        star.style.width = size + "px";
+        star.style.height = size + "px";
+
+        // Set random twinkle duration
+        star.style.setProperty(
+            "--duration",
+            (Math.random() * 3 + 2) + "s"
+        );
+
+        // Start each star at a different time
+        star.style.animationDelay =
+            Math.random() * 5 + "s";
+
+        starsContainer.appendChild(star);
+    }
+
+    // Create a shooting star
+    function createShootingStar() {
+        const shootingStar = document.createElement("div");
+
+        shootingStar.classList.add("shooting-star");
+
+        // Set a random starting position
+        shootingStar.style.left =
+            Math.random() * 80 + "%";
+
+        shootingStar.style.top =
+            Math.random() * 50 + "%";
+
+        starsContainer.appendChild(shootingStar);
+
+        // Remove the shooting star after the animation
+        setTimeout(() => {
+            shootingStar.remove();
+        }, 1000);
+    }
+
+    // Create shooting stars at random intervals
+    function randomShootingStar() {
+        createShootingStar();
+
+        const nextTime =
+            Math.random() * 5000 + 3000;
+
+        setTimeout(
+            randomShootingStar,
+            nextTime
+        );
+    }
+
+    randomShootingStar();
+
+    document.getElementById("urlInput").addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+        fetchVideo();
+        }
+    });
+
+    // 1- Fetch video info
+    async function fetchVideo() {
+        const url = document.getElementById("urlInput").value.trim();
+        if (!url) return alert("Please enter a valid URL");
+
+        if(infoController){
+            infoController.abort();
+        }
+        infoController = new AbortController();
+
+        const btn = document.getElementById("infoBtn");
+        btn.disabled = true;
+        btn.innerText = "Loading...";
+
+        try {
+            const res = await fetch("/api/info", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: url })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || "Server rejected the URL.");
+            }
+
+            const data = await res.json();
+            activeUrl = url;
+
+
+            videoDuration = Math.floor(data.duration);
+            const hours = Math.floor(videoDuration / 3600);
+            const minutes = Math.floor((videoDuration % 3600) / 60);
+            const seconds = videoDuration % 60;
+
+            let displayedDuration = "Duration: ";
+
+            if (hours > 0) displayedDuration += `${hours}h `;
+            if (minutes > 0 || hours > 0) displayedDuration += `${minutes}m `;
+            displayedDuration += `${seconds}s`;
+
+            document.getElementById("duration").innerText = displayedDuration;
+            document.getElementById("thumb").src = data.thumbnail;
+            document.getElementById("title").innerText = data.title;
+            document.getElementById("preview").style.display = "block";
+            document.getElementById("loadingBox").style.display = "none";
+        } catch (err) {
+            alert("ERROR: " + err.message);
+            document.getElementById("preview").style.display = "none";
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Get Video Info";
+        }
+    }
+
+
+    // 2- Start downloading
+    async function startDownload() {
+        const format = document.getElementById("formatSelect").value;
+        const dlBtn = document.getElementById("dlBtn");
+        const loadingBox = document.getElementById("loadingBox");
+        const statusMsg = document.getElementById("statusMsg");
+
+        // UI adjustments
+        dlBtn.disabled = true;
+        loadingBox.style.display = "block";
+        statusMsg.innerText = "File is being ready. Please wait...";
+
+        // AbortController
+        downloadController = new AbortController();
+        const signal = downloadController.signal;
+
+        // Cancel the download if it exceeds 60 seconds
+        const TIMEOUT_LIMIT = Math.min(
+            30 * 60 * 1000,                    // Maximum 30 minutes
+            Math.max(2 * 60 * 1000, videoDuration * 1000 * 1.5)
+        );
+        timeoutTimer = setTimeout(() => {
+            cancelDownload(true);
+        }, TIMEOUT_LIMIT);
+
+        try {
+            const response = await fetch(
+                `/api/download?url=${encodeURIComponent(activeUrl)}&format=${format}`,
+                {
+                    signal: signal
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error("An error occurred during converting.");
+            }
+
+            // Save the file to the browser
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+
+            a.href = downloadUrl;
+
+            const title =
+                document.getElementById("title").innerText ||
+                "Downloaded";
+
+            a.download = `${title}.${format}`;
+
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            window.URL.revokeObjectURL(downloadUrl);
+
+        } catch (err) {
+            if (err.name === "AbortError") {
+                console.log("Download request was cancelled.");
+            } else {
+                alert("ERROR: " + err.message);
+            }
+        } finally {
+            // Reset the timer and UI when the process is finished
+            clearTimeout(timeoutTimer);
+            dlBtn.disabled = false;
+            loadingBox.style.display = "none";
+        }
+    }
+
+
+    // 3- Cancel function (Button or timeout)
+    function cancelDownload(isTimeout = false) {
+        if (downloadController) {
+            downloadController.abort(); // Cancel request
+            downloadController = null;
+        }
+
+        clearTimeout(timeoutTimer);
+
+        if (isTimeout) {
+            alert(
+                "Download process is CANCELLED because of timeout (60 seconds was exceeded)."
+            );
+        }
+    }
+</script>
+
+</body>
+</html>
+
