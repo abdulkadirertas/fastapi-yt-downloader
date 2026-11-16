@@ -32,3 +32,7 @@ Ensure you have the following installed on your system:
    ```bash
    git clone [https://github.com/](https://github.com/)<your-username>/fastapi-yt-downloader.git
    cd fastapi-yt-downloader
+
+
+## Disclaimer
+This project is developed strictly for educational purposes to demonstrate asynchronous web development with FastAPI and FFmpeg integration. Users are responsible for complying with YouTube's Terms of Service and applicable copyright laws. Do not download copyrighted material without permission.
